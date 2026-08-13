@@ -1,0 +1,267 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=yes">
+    <title>TeleCommand Remote Desktop</title>
+    <style>
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { background:#12141c; color:#e0e0e0; font-family:system-ui, sans-serif; padding:16px; min-height:100vh; display:flex; flex-direction:column; align-items:center; }
+        .container { width:100%; max-width:800px; background:#1a1e29; border-radius:18px; box-shadow:0 8px 30px rgba(0,0,0,0.4); padding:22px 18px; display:flex; flex-direction:column; gap:18px; }
+        .header { display:flex; align-items:center; gap:10px; }
+        .status-dot { width:14px; height:14px; border-radius:50%; background:#ff4d4d; flex-shrink:0; }
+        .status-dot.connecting { background:#ffa500; }
+        .status-dot.online { background:#00e676; }
+        h1 { font-size:1.6rem; font-weight:700; color:#00d4ff; }
+        .buttons { display:flex; flex-wrap:wrap; gap:8px; }
+        button { background:#212736; border:1px solid #3a4055; color:#e0e0e0; padding:12px 16px; border-radius:12px; font-size:0.9rem; font-weight:600; cursor:pointer; flex:1 1 auto; min-width:100px; text-align:center; transition:0.2s; }
+        button:hover { background:#2a3040; border-color:#00d4ff; }
+        button.danger { border-color:#ff5252; color:#ff8a80; }
+        button.danger:hover { background:#392d36; border-color:#ff5252; }
+        button:disabled { opacity:0.4; pointer-events:none; }
+        .screen-box { width:100%; background:#0a0d14; border-radius:12px; overflow:hidden; border:1px solid #2a2f3f; aspect-ratio:16/9; display:flex; align-items:center; justify-content:center; }
+        video { width:100%; height:100%; object-fit:contain; background:#000; cursor:crosshair; }
+        .log-box { background:#0a0d14; border:1px solid #1e2332; border-radius:12px; padding:12px; font-family:monospace; font-size:0.8rem; color:#b4c0e0; max-height:180px; overflow-y:auto; word-break:break-word; }
+        .log-entry { padding:3px 0; border-bottom:1px solid rgba(255,255,255,0.03); }
+        .log-entry .time { color:#6b7394; margin-right:6px; }
+        #keyCapture { position:absolute; opacity:0; width:1px; height:1px; border:none; outline:none; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <div class="status-dot" id="statusDot"></div>
+            <h1>TeleCommand Remote Desktop</h1>
+        </div>
+
+        <div class="buttons">
+            <button id="connectBtn">📡 Connect</button>
+            <button id="disconnectBtn" class="danger" disabled>⏹ Disconnect</button>
+            <button id="keyboardBtn" disabled>⌨️ Keyboard</button>
+        </div>
+
+        <div class="screen-box">
+            <video id="remoteScreen" autoplay playsinline muted></video>
+        </div>
+
+        <input type="text" id="keyCapture" autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" />
+
+        <div class="log-box" id="logContainer">
+            <div class="log-entry">🟢 Ready. Click Connect to start.</div>
+        </div>
+    </div>
+
+    <script>
+        let peerConnection = null;
+        let dataChannel = null;
+        let connectionState = 'idle';
+
+        const statusDot = document.getElementById('statusDot');
+        const connectBtn = document.getElementById('connectBtn');
+        const disconnectBtn = document.getElementById('disconnectBtn');
+        const keyboardBtn = document.getElementById('keyboardBtn');
+        const remoteScreen = document.getElementById('remoteScreen');
+        const keyCapture = document.getElementById('keyCapture');
+        const logContainer = document.getElementById('logContainer');
+
+        function updateUI(state) {
+            connectionState = state;
+            statusDot.className = 'status-dot';
+            if (state === 'connecting') statusDot.classList.add('connecting');
+            if (state === 'connected') statusDot.classList.add('online');
+
+            connectBtn.disabled = (state === 'connecting');
+            disconnectBtn.disabled = (state === 'idle');
+            keyboardBtn.disabled = (state !== 'connected');
+        }
+
+        function addLog(msg, isError = false) {
+            const now = new Date().toLocaleTimeString('en-US', { hour12: false });
+            const entry = document.createElement('div');
+            entry.className = 'log-entry';
+            entry.innerHTML = `<span class="time">[${now}]</span> ${msg}`;
+            if (isError) entry.style.color = '#ff8888';
+            logContainer.appendChild(entry);
+            logContainer.scrollTop = logContainer.scrollHeight;
+            while (logContainer.children.length > 150) logContainer.removeChild(logContainer.firstChild);
+        }
+
+        function sendJSON(obj) {
+            if (dataChannel && dataChannel.readyState === 'open') {
+                dataChannel.send(JSON.stringify(obj));
+            }
+        }
+
+        // ---- Connect flow ----
+        async function connect() {
+            if (connectionState !== 'idle') return;
+            try {
+                addLog('Creating peer connection...');
+                peerConnection = new RTCPeerConnection({
+                    iceServers: [{ urls: 'stun:stun.l.google.com:19302' }]
+                });
+
+                // Force video receive
+                peerConnection.addTransceiver('video', { direction: 'recvonly' });
+
+                // Data channel for commands
+                dataChannel = peerConnection.createDataChannel('control', { ordered: true });
+                dataChannel.addEventListener('open', () => {
+                    addLog('✅ Data channel open. You can now control the remote.');
+                    updateUI('connected');
+                });
+                dataChannel.addEventListener('close', () => {
+                    addLog('🔒 Data channel closed.');
+                    updateUI('idle');
+                });
+                dataChannel.addEventListener('error', (e) => addLog('Data channel error.', true));
+
+                // Incoming video
+                peerConnection.addEventListener('track', (event) => {
+                    if (event.track.kind === 'video') {
+                        addLog('📺 Screen stream received!');
+                        remoteScreen.srcObject = event.streams[0];
+                        remoteScreen.play().catch(e => addLog('Autoplay failed: ' + e.message, true));
+                    }
+                });
+
+                peerConnection.addEventListener('iceconnectionstatechange', () => {
+                    addLog(`ICE state: ${peerConnection.iceConnectionState}`);
+                    if (peerConnection.iceConnectionState === 'failed' || peerConnection.iceConnectionState === 'disconnected') {
+                        addLog('ICE connection lost.', true);
+                        disconnect();
+                    }
+                });
+
+                // Create offer
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+
+                // Wait for ICE gathering
+                await new Promise(resolve => {
+                    if (peerConnection.iceGatheringState === 'complete') resolve();
+                    else peerConnection.addEventListener('icegatheringstatechange', function h() {
+                        if (peerConnection.iceGatheringState === 'complete') {
+                            peerConnection.removeEventListener('icegatheringstatechange', h);
+                            resolve();
+                        }
+                    });
+                });
+
+                const offerSdp = peerConnection.localDescription.sdp;
+
+                // Send offer to Python server
+                addLog('Sending offer to server...');
+                const response = await fetch('/offer', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ sdp: offerSdp })
+                });
+
+                if (!response.ok) {
+                    const err = await response.json();
+                    throw new Error(err.error || 'Server error');
+                }
+
+                const data = await response.json();
+                const answerSdp = data.sdp;
+                addLog('✅ Answer received automatically.');
+
+                // Set remote description
+                await peerConnection.setRemoteDescription({
+                    type: 'answer',
+                    sdp: answerSdp
+                });
+
+                addLog('Connection established. Waiting for screen...');
+                updateUI('connecting');
+
+            } catch (err) {
+                addLog('Connect failed: ' + err.message, true);
+                disconnect();
+            }
+        }
+
+        function disconnect() {
+            if (peerConnection) {
+                peerConnection.close();
+                peerConnection = null;
+            }
+            dataChannel = null;
+            remoteScreen.srcObject = null;
+            updateUI('idle');
+            addLog('Disconnected.');
+        }
+
+        // ---- Mouse / touch ----
+        function getRelativePos(e) {
+            const rect = remoteScreen.getBoundingClientRect();
+            const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+            const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+            return {
+                x: Math.min(Math.max((clientX - rect.left) / rect.width, 0), 1),
+                y: Math.min(Math.max((clientY - rect.top) / rect.height, 0), 1)
+            };
+        }
+
+        remoteScreen.addEventListener('mousedown', (e) => {
+            e.preventDefault();
+            const pos = getRelativePos(e);
+            const button = e.button === 2 ? 'right' : 'left';
+            sendJSON({ type: 'mouse_down', x: pos.x, y: pos.y, button });
+        });
+        remoteScreen.addEventListener('mousemove', (e) => {
+            if (e.buttons === 0) return;
+            e.preventDefault();
+            const pos = getRelativePos(e);
+            sendJSON({ type: 'mouse_move', x: pos.x, y: pos.y });
+        });
+        remoteScreen.addEventListener('mouseup', (e) => {
+            e.preventDefault();
+            const pos = getRelativePos(e);
+            const button = e.button === 2 ? 'right' : 'left';
+            sendJSON({ type: 'mouse_up', x: pos.x, y: pos.y, button });
+        });
+        remoteScreen.addEventListener('contextmenu', (e) => {
+            e.preventDefault();
+            const pos = getRelativePos(e);
+            sendJSON({ type: 'mouse_click', x: pos.x, y: pos.y, button: 'right' });
+        });
+        remoteScreen.addEventListener('touchstart', (e) => {
+            e.preventDefault();
+            const pos = getRelativePos(e);
+            sendJSON({ type: 'mouse_down', x: pos.x, y: pos.y, button: 'left' });
+        }, { passive: false });
+        remoteScreen.addEventListener('touchmove', (e) => {
+            e.preventDefault();
+            const pos = getRelativePos(e);
+            sendJSON({ type: 'mouse_move', x: pos.x, y: pos.y });
+        }, { passive: false });
+        remoteScreen.addEventListener('touchend', (e) => {
+            e.preventDefault();
+            const pos = getRelativePos(e);
+            sendJSON({ type: 'mouse_up', x: pos.x, y: pos.y, button: 'left' });
+        }, { passive: false });
+
+        // ---- Keyboard ----
+        keyboardBtn.addEventListener('click', () => {
+            keyCapture.focus();
+            addLog('⌨️ Keyboard focused. Type to send keys.');
+        });
+        keyCapture.addEventListener('keydown', (e) => {
+            e.preventDefault();
+            let key = e.key;
+            if (key.length === 1) {
+                sendJSON({ type: 'key_press', key });
+            } else {
+                sendJSON({ type: 'key_press', key: key.toLowerCase() });
+            }
+        });
+
+        connectBtn.addEventListener('click', connect);
+        disconnectBtn.addEventListener('click', disconnect);
+
+        updateUI('idle');
+    </script>
+</body>
+</html>
