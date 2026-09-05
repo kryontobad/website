@@ -1,0 +1,268 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>SecureVault - Login</title>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      min-height: 100vh;
+      margin: 0;
+      padding: 20px;
+    }
+    .container {
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+      width: 100%;
+      max-width: 400px;
+      padding: 30px;
+      transition: all 0.3s ease;
+    }
+    .hidden { display: none; }
+    .logo {
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .logo h1 {
+      color: #1e3c72;
+      font-size: 28px;
+      letter-spacing: 1px;
+    }
+    .logo p {
+      color: #666;
+      font-size: 14px;
+    }
+    .input-group {
+      margin-bottom: 15px;
+    }
+    .input-group label {
+      display: block;
+      margin-bottom: 5px;
+      color: #333;
+      font-weight: 500;
+      font-size: 14px;
+    }
+    .input-group input {
+      width: 100%;
+      padding: 12px;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 16px;
+      transition: border 0.2s;
+    }
+    .input-group input:focus {
+      border-color: #1e3c72;
+      outline: none;
+      box-shadow: 0 0 5px rgba(30,60,114,0.3);
+    }
+    .btn {
+      width: 100%;
+      padding: 12px;
+      background: #1e3c72;
+      color: white;
+      border: none;
+      border-radius: 6px;
+      font-size: 16px;
+      font-weight: bold;
+      cursor: pointer;
+      transition: background 0.2s;
+    }
+    .btn:hover { background: #2a5298; }
+    .btn-secondary {
+      background: #888;
+      margin-top: 10px;
+    }
+    .btn-secondary:hover { background: #666; }
+    .dashboard {
+      text-align: center;
+    }
+    .dashboard h2 {
+      color: #1e3c72;
+      margin-bottom: 10px;
+    }
+    .balance-box {
+      background: #f0f4ff;
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+    .balance-box .amount {
+      font-size: 32px;
+      font-weight: bold;
+      color: #1e3c72;
+    }
+    .token-info {
+      background: #f9f9f9;
+      border-left: 4px solid #1e3c72;
+      padding: 10px;
+      margin: 15px 0;
+      text-align: left;
+      font-size: 14px;
+      word-break: break-all;
+    }
+    .log-btn {
+      background: transparent;
+      border: 1px solid #1e3c72;
+      color: #1e3c72;
+      padding: 8px 15px;
+      border-radius: 4px;
+      cursor: pointer;
+      margin: 5px;
+      font-size: 14px;
+    }
+    .log-btn:hover {
+      background: #1e3c72;
+      color: white;
+    }
+    .console-log {
+      margin-top: 20px;
+      background: #222;
+      color: #0f0;
+      padding: 10px;
+      border-radius: 6px;
+      max-height: 150px;
+      overflow-y: auto;
+      text-align: left;
+      font-family: monospace;
+      font-size: 12px;
+    }
+  </style>
+</head>
+<body>
+
+<div class="container" id="login-container">
+  <div class="logo">
+    <h1>SecureVault</h1>
+    <p>Your trusted online banking</p>
+  </div>
+  <div id="login-form">
+    <div class="input-group">
+      <label for="username">Username</label>
+      <input type="text" id="username" placeholder="Enter your username">
+    </div>
+    <div class="input-group">
+      <label for="password">Password</label>
+      <input type="password" id="password" placeholder="Enter your password">
+    </div>
+    <button class="btn" onclick="login()">Log In</button>
+  </div>
+  <div id="dashboard" class="dashboard hidden">
+    <h2>Welcome, <span id="user-display"></span>!</h2>
+    <p>Your account overview</p>
+    <div class="balance-box">
+      <p>Available Balance</p>
+      <p class="amount">$24,500.00</p>
+    </div>
+    <div class="token-info" id="token-info">
+      <strong>Session Token:</strong><br>
+      <span id="token-value">No session token detected</span>
+    </div>
+    <button class="log-btn" onclick="viewCookies()">View Cookies</button>
+    <button class="log-btn" onclick="logAction('User clicked a button')">Log Test Action</button>
+    <button class="btn btn-secondary" onclick="logout()">Log Out</button>
+    <div class="console-log" id="console-log"></div>
+  </div>
+</div>
+
+<script>
+  // Console log display in dashboard
+  function logAction(message) {
+    const logDiv = document.getElementById('console-log');
+    const timestamp = new Date().toLocaleTimeString();
+    logDiv.innerHTML += `[${timestamp}] ${message}\n`;
+    logDiv.scrollTop = logDiv.scrollHeight;
+    console.log(message);
+  }
+
+  // Simulate login
+  function login() {
+    const username = document.getElementById('username').value.trim() || 'TestUser';
+    const password = document.getElementById('password').value; // not used
+
+    // Generate a random session token
+    const token = 'SESSION_' + Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15);
+
+    // Set cookies (expire in 1 hour)
+    document.cookie = `session_token=${token}; path=/; max-age=3600`;
+    document.cookie = `username=${encodeURIComponent(username)}; path=/; max-age=3600`;
+    document.cookie = `csrf_token=CSRF_${Math.random().toString(36).substring(2, 10)}; path=/; max-age=3600`;
+
+    // Log actions
+    logAction(`User "${username}" logged in`);
+    logAction(`Session token created: ${token}`);
+    logAction(`Cookies set: ${document.cookie}`);
+
+    // Show dashboard, hide login form
+    document.getElementById('login-form').classList.add('hidden');
+    document.getElementById('dashboard').classList.remove('hidden');
+    document.getElementById('user-display').textContent = username;
+
+    // Update token info
+    const tokenValueSpan = document.getElementById('token-value');
+    if (getCookie('session_token')) {
+      tokenValueSpan.textContent = getCookie('session_token');
+    } else {
+      tokenValueSpan.textContent = 'No session token detected';
+    }
+  }
+
+  // Helper to get a cookie by name
+  function getCookie(name) {
+    const cookies = document.cookie.split(';');
+    for (let c of cookies) {
+      c = c.trim();
+      if (c.startsWith(name + '=')) {
+        return c.substring(name.length + 1);
+      }
+    }
+    return null;
+  }
+
+  // Show all cookies in an alert (or update log)
+  function viewCookies() {
+    alert('Cookies on this page:\n\n' + document.cookie);
+    logAction('Viewed cookies');
+  }
+
+  // Logout: clear cookies and return to login
+  function logout() {
+    // Expire all cookies we set
+    document.cookie = 'session_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+    document.cookie = 'username=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+    document.cookie = 'csrf_token=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;';
+
+    logAction('User logged out, cookies cleared');
+    console.log('Logged out, cookies cleared');
+
+    // Switch back to login
+    document.getElementById('dashboard').classList.add('hidden');
+    document.getElementById('login-form').classList.remove('hidden');
+
+    // Reset token info
+    document.getElementById('token-value').textContent = 'No session token detected';
+  }
+
+  // Initial check if session token already exists (e.g., after page reload)
+  window.onload = function() {
+    const existingToken = getCookie('session_token');
+    if (existingToken) {
+      // If token exists, show dashboard with stored username
+      const storedUser = getCookie('username') || 'User';
+      document.getElementById('login-form').classList.add('hidden');
+      document.getElementById('dashboard').classList.remove('hidden');
+      document.getElementById('user-display').textContent = decodeURIComponent(storedUser);
+      document.getElementById('token-value').textContent = existingToken;
+      logAction(`Session restored for ${storedUser}`);
+    }
+  };
+</script>
+
+</body>
+</html>
